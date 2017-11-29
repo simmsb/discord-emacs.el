@@ -12,6 +12,7 @@ Discord rich presence for emacs.
 ```elisp
 (discord-ipc-run "your-app-id")
 ```
+Where the app id is of a rich presence enabled app.
 
 I have put together an app with a few assets for c, haskell, hy, python and racket. Make an issue if you want some more added.
 ```
