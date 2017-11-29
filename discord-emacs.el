@@ -109,8 +109,8 @@
 (defun discord-ipc-run (client-id)
   (unless discord-ipc-started
     (setq discord-ipc-client-id client-id)
-    (setq discord-ipc-started t)
     (ipc-connect client-id)
+    (setq discord-ipc-started t)
     (add-hook 'post-command-hook 'ipc-send-update)))
 
 (provide 'discord-ipc)
