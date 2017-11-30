@@ -25,8 +25,7 @@
 (defun make-ipc-connection ()
   "Make a ipc socket connection"
   (make-network-process :name "discord-emacs"
-                        :remote (get-ipc-url)
-                        :nowait nil))
+                        :remote (get-ipc-url)))
 
 (defun handle-ipc-connection (process data)
   (let* ((decoded (unpack-data data))
@@ -69,8 +68,8 @@
 
 (defun ipc-connect (client-id)
   (let ((process (make-ipc-connection)))
-    (set-process-filter process 'handle-ipc-connection)
-    (set-process-sentinel process 'handle-ipc-evt)
+    (set-process-filter process #'handle-ipc-connection)
+    (set-process-sentinel process #'handle-ipc-evt)
     (setq discord-ipc-process process)
     (send-json process discord-ipc-+handshake+ (ipc-handshake client-id))))
 
@@ -111,6 +110,6 @@
     (setq discord-ipc-client-id client-id)
     (ipc-connect client-id)
     (setq discord-ipc-started t)
-    (add-hook 'post-command-hook 'ipc-send-update)))
+    (add-hook 'post-command-hook #'ipc-send-update)))
 
 (provide 'discord-ipc)
