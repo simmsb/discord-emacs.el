@@ -1,6 +1,9 @@
 (require 'json)
 (require 'bindat)
 
+(defmacro maybe (x r)
+  `(if ,x ,x ,r))
+
 (defvar discord-ipc-+handshake+ 0)
 (defvar discord-ipc-+frame+ 1)
 (defvar discord-ipc-+close+ 2)
@@ -31,8 +34,7 @@
   (let* ((decoded (unpack-data data))
          (evt (cdr (assq 'evt (cdr decoded)))))
     (cond ((string= evt "READY")
-           (setq discord-ipc-current-connection process)
-           (send-json process discord-ipc-+frame+ (gather-data))))))
+           (setq discord-ipc-current-connection process)))))
 
 (defun handle-ipc-evt (process evt)
   (when (string= evt "connection broken by remote peer\n")
@@ -61,7 +63,6 @@
     (nonce . ,(number-to-string (random)))))
 
 (defun send-json (process opcode data)
-  ;; (message "Sending discord-ipc op: %d data: %s" opcode data)
   (if process
       (process-send-string process (pack-data opcode data))
     (ipc-connect discord-ipc-client-id)))
@@ -83,7 +84,7 @@
 (defun get-current-major-mode ()
   (let ((mode (assq 'major-mode (buffer-local-variables))))
     (when mode
-      (cdr mode))))
+      (symbol-name (cdr mode)))))
 
 (defun start-time ()
   (let* ((uptime (string-to-number (emacs-uptime "%s")))
@@ -94,22 +95,23 @@
   (rich-presence :details (format "Editing buffer: %s" (buffer-name))
                  :state (format "Buffers open: %d" (count-buffers))
                  :timestamps `(:start ,(start-time))
-                 :assets `((large_image . ,(file-name-extension (buffer-name)))
+                 :assets `((large_image . ,(maybe (file-name-extension (buffer-name)) "no-extension"))
                            (large_text . ,(get-current-major-mode))
-                           (small_image . emacs)
-                           (small_text . emacs))))
+                           (small_image . "emacs")
+                           (small_text . "emacs"))))
 
 (defun ipc-send-update ()
   (unless (or (string= discord-ipc-current-buffer (buffer-name))
-              (string= (get-current-major-mode) "minbuffer-inactive-mode")) ; dont send messages when we enter the minibuffer
-    (setq discord-ipc-current-buffer (buffer-name))
-    (send-json discord-ipc-process discord-ipc-+frame+ (gather-data))))
+              (string= (get-current-major-mode) "minbuffer-inactive-mode")) ; dont send messages when we are in the same buffer or enter the minibuf
+      (setq discord-ipc-current-buffer (buffer-name))
+      (send-json discord-ipc-process discord-ipc-+frame+ (gather-data))))
 
 (defun discord-ipc-run (client-id)
   (unless discord-ipc-started
     (setq discord-ipc-client-id client-id)
-    (ipc-connect client-id)
-    (setq discord-ipc-started t)
-    (add-hook 'post-command-hook #'ipc-send-update)))
+    (add-hook 'post-command-hook #'ipc-send-update)
+    (ignore-errors ; if we fail here we'll just reconnect later
+      (ipc-connect client-id)
+      (setq discord-ipc-started t))))
 
 (provide 'discord-ipc)
