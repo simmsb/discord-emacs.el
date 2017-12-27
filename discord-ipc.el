@@ -1,7 +1,7 @@
 ;;; discord-ipc.el --- Discord ipc for emacs
 ;; Author: Ben Simms <ben@bensimms.moe>
 ;; Version: 20171212
-;; URL: https://github.com/nitros12/discord-emacs.el
+;; URL: https://github.com/nitros12/discord-ipc.el
 
 (require 'json)
 (require 'bindat)
@@ -22,31 +22,28 @@
 
 (defvar discord-ipc-rich-presence-version 1)
 
-(defvar discord-ipc-process nil)
 (defvar discord-ipc-client-id nil)
 (defvar discord-ipc-current-buffer nil)
 (defvar discord-ipc-started nil)
 
 (defun get-ipc-url ()
+  "Get the socket address to make the ipc connection on."
   (format "/run/user/%i/discord-ipc-0" (user-uid)))
 
 (defun make-ipc-connection ()
-  "Make a ipc socket connection"
-  (make-network-process :name "discord-emacs"
+  "Make a ipc socket connection."
+  (make-network-process :name "discord-ipc-process"
                         :remote (get-ipc-url)))
 
 (defun handle-ipc-connection (process data)
+  "Handle an ipc connection on a PROCESS with DATA."
   (let* ((decoded (unpack-data data))
          (evt (cdr (assq 'evt (cdr decoded)))))
     (cond ((string= evt "READY")
            (setq discord-ipc-current-connection process)))))
 
-(defun handle-ipc-evt (process evt)
-  (when (string= evt "connection broken by remote peer\n")
-    (delete-process process)
-    (setq discord-ipc-process nil)))
-
 (defun pack-data (opcode data)
+  "Pack OPCODE and DATA."
   (let ((encoded-json (json-encode data)))
     (bindat-pack discord-ipc-spec `((opcode . ,opcode)
                                     (length . ,(length encoded-json))
@@ -67,17 +64,18 @@
              (activity . ,fields)))
     (nonce . ,(number-to-string (random)))))
 
-(defun send-json (process opcode data)
-  (if process
-      (process-send-string process (pack-data opcode data))
-    (ipc-connect discord-ipc-client-id)))
+(defun send-json (opcode data)
+  (let ((process (get-process "discord-ipc-process")))
+    (if (and process
+             (process-live-p process))
+        (process-send-string process (pack-data opcode data))
+      (ipc-connect discord-ipc-client-id))))
 
 (defun ipc-connect (client-id)
   (let ((process (make-ipc-connection)))
     (set-process-filter process #'handle-ipc-connection)
-    (set-process-sentinel process #'handle-ipc-evt)
-    (setq discord-ipc-process process)
-    (send-json process discord-ipc-+handshake+ (ipc-handshake client-id))))
+    (send-json discord-ipc-+handshake+ (ipc-handshake client-id))
+    (setq discord-ipc-started t)))
 
 (defun count-buffers ()
   (cl-count-if
@@ -109,14 +107,14 @@
   (unless (or (string= discord-ipc-current-buffer (buffer-name))
               (string= (get-current-major-mode) "minbuffer-inactive-mode")) ; dont send messages when we are in the same buffer or enter the minibuf
       (setq discord-ipc-current-buffer (buffer-name))
-      (send-json discord-ipc-process discord-ipc-+frame+ (gather-data))))
+      (send-json discord-ipc-+frame+ (gather-data))))
 
 (defun discord-ipc-run (client-id)
   (unless discord-ipc-started
     (setq discord-ipc-client-id client-id)
     (add-hook 'post-command-hook #'ipc-send-update)
     (ignore-errors ; if we fail here we'll just reconnect later
-      (ipc-connect client-id)
-      (setq discord-ipc-started t))))
+      (ipc-connect client-id))))
 
 (provide 'discord-ipc)
+;;; discord-ipc.el ends here
