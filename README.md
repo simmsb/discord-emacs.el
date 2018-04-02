@@ -9,17 +9,16 @@ Discord rich presence for emacs.
 or use a Quelpa recipe
 
 ```elisp
-(discord-ipc :fetcher github :repo "nitros12/discord-ipc.el")
+(discord-emacs :fetcher github :repo "nitros12/discord-emacs.el")
 ```
 
 # Use
 
 ```elisp
-(discord-ipc-run "your-app-id")
+(discord-emacs-run "384815451978334208")
 ```
-Where the app id is of a rich presence enabled app.
 
-I have put together an app with a few assets for c, haskell, hy, python and racket. Make an issue if you want some more added.
-```
-"384815451978334208"
-```
+The ID shown is an app with assets for c, haskell, hy, python and racket. Make
+an issue if you want some more added.
+
+![image](https://user-images.githubusercontent.com/5330444/38216519-ea9b2580-36c2-11e8-98ca-98f10da738c4.png)
