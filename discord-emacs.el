@@ -1,6 +1,6 @@
 ;;; discord-emacs.el --- Discord ipc for emacs
 ;; Author: Ben Simms <ben@bensimms.moe>
-;; Version: 20171212
+;; Version: 20170402
 ;; URL: https://github.com/nitros12/discord-emacs.el
 
 (require 'json)
