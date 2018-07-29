@@ -6,9 +6,6 @@
 (require 'json)
 (require 'bindat)
 
-(defmacro maybe (x r)
-  `(if ,x ,x ,r))
-
 (defvar discord-emacs--+handshake+ 0)
 (defvar discord-emacs--+frame+ 1)
 (defvar discord-emacs--+close+ 2)
@@ -25,6 +22,9 @@
 (defvar discord-emacs--client-id nil)
 (defvar discord-emacs--current-buffer nil)
 (defvar discord-emacs--started nil)
+
+(defun discord-emacs--maybe (x r)
+  (if x x r))
 
 (defun discord-emacs--get-ipc-url ()
   "Get the socket address to make the ipc connection on."
@@ -46,8 +46,8 @@
   "Pack OPCODE and DATA."
   (let ((encoded-json (json-encode data)))
     (bindat-pack discord-emacs--spec `((opcode . ,opcode)
-                                    (length . ,(length encoded-json))
-                                    (data . ,encoded-json)))))
+                                       (length . ,(length encoded-json))
+                                       (data . ,encoded-json)))))
 
 (defun discord-emacs--unpack-data (data)
   (let ((unpacked (bindat-unpack discord-emacs--spec (string-as-unibyte data))))
@@ -95,19 +95,21 @@
     (- current-time uptime)))
 
 (defun discord-emacs--gather-data ()
-  (discord-emacs--rich-presence :details (format "Editing buffer: %s" (buffer-name))
-                 :state (format "Buffers open: %d" (discord-emacs--count-buffers))
-                 :timestamps `(:start ,(discord-emacs--start-time))
-                 :assets `((large_image . ,(maybe (file-name-extension (buffer-name)) "no-extension"))
-                           (large_text . ,(discord-emacs--get-current-major-mode))
-                           (small_image . "emacs")
-                           (small_text . "emacs"))))
+  (discord-emacs--rich-presence
+   :details (format "Editing buffer: %s" (buffer-name))
+   :state (format "Buffers open: %d" (discord-emacs--count-buffers))
+   :timestamps `(:start ,(discord-emacs--start-time))
+   :assets `((large_image . ,(discord-emacs--maybe (file-name-extension (buffer-name)) "no-extension"))
+             (large_text . ,(discord-emacs--get-current-major-mode))
+             (small_image . "emacs")
+             (small_text . "emacs"))))
 
 (defun discord-emacs--ipc-send-update ()
   (unless (or (string= discord-emacs--current-buffer (buffer-name))
-              (string= (discord-emacs--get-current-major-mode) "minbuffer-inactive-mode")) ; dont send messages when we are in the same buffer or enter the minibuf
-      (setq discord-emacs--current-buffer (buffer-name))
-      (discord-emacs--send-json discord-emacs--+frame+ (discord-emacs--gather-data))))
+              (string= (discord-emacs--get-current-major-mode) "minibuffer-inactive-mode"))
+              ;; dont send messages when we are in the same buffer or enter the minibuf
+    (setq discord-emacs--current-buffer (buffer-name))
+    (discord-emacs--send-json discord-emacs--+frame+ (discord-emacs--gather-data))))
 
 (defun discord-emacs-run (client-id)
   (unless discord-emacs--started
