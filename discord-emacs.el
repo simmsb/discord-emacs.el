@@ -1,10 +1,11 @@
-;;; discord-emacs.el --- Discord ipc for emacs
+;;; discord-emacs.el --- Discord ipc for emacs -*- lexical-binding: t -*-
 ;; Author: Ben Simms <ben@bensimms.moe>
-;; Version: 20170402
+;; Version: 20180806
 ;; URL: https://github.com/nitros12/discord-emacs.el
 
 (require 'json)
 (require 'bindat)
+(require 'cl-lib)
 
 (defvar discord-emacs--+handshake+ 0)
 (defvar discord-emacs--+frame+ 1)
@@ -22,6 +23,9 @@
 (defvar discord-emacs--client-id nil)
 (defvar discord-emacs--current-buffer nil)
 (defvar discord-emacs--started nil)
+(defvar discord-emacs--blacklisted-buffer-names
+  '("^\\*Minibuf"
+    "^\\*NeoTree"))
 
 (defun discord-emacs--maybe (x r)
   (if x x r))
@@ -104,10 +108,21 @@
              (small_image . "emacs")
              (small_text . "emacs"))))
 
+(defun discord-emacs--some-pred (predicates val)
+  (cl-some (lambda (pred) (funcall pred val))
+           predicates))
+
+(defun discord-emacs--test-buffer ()
+  (discord-emacs--some-pred
+   (cl-mapcar (lambda (regex)
+                (lambda (s) (string-match regex s)))
+              discord-emacs--blacklisted-buffer-names)
+   (buffer-name)))
+
 (defun discord-emacs--ipc-send-update ()
   (unless (or (string= discord-emacs--current-buffer (buffer-name))
-              (string= (discord-emacs--get-current-major-mode) "minibuffer-inactive-mode"))
-              ;; dont send messages when we are in the same buffer or enter the minibuf
+              (discord-emacs--test-buffer))
+    ;; dont send messages when we are in the same buffer or enter the minibuf
     (setq discord-emacs--current-buffer (buffer-name))
     (discord-emacs--send-json discord-emacs--+frame+ (discord-emacs--gather-data))))
 
