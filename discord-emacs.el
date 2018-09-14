@@ -70,6 +70,7 @@
 
 (defun discord-emacs--ipc-connect (client-id)
   "Make an ipc connection to discord with the client id CLIENT-ID."
+  (discord-emacs--make-ipc-connection)
   (discord-emacs--send-json discord-emacs--+handshake+ (discord-emacs--ipc-handshake client-id))
   (setq discord-emacs--started t))
 
