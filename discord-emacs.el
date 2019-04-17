@@ -97,7 +97,7 @@
 (defun discord-emacs--projectile-current-project (s)
   "Prepend the current project to S if projectile is installed."
   (if (featurep 'projectile)
-      (format "Project: %s, %s", (projectile-project-name) s)
+      (format "Project: %s, %s" (projectile-project-name) s)
     s))
 
 (defun discord-emacs--gather-data ()
