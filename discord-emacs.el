@@ -1,6 +1,6 @@
 ;;; discord-emacs.el --- Discord ipc for emacs -*- lexical-binding: t -*-
 ;; Author: Ben Simms <ben@bensimms.moe>
-;; Version: 20190417
+;; Version: 20190419
 ;; URL: https://github.com/nitros12/discord-emacs.el
 
 (require 'json)
@@ -84,9 +84,8 @@
 
 (defun discord-emacs--get-current-major-mode ()
   "Get the current major mode of the active buffer."
-  (let ((mode (assq 'major-mode (buffer-local-variables))))
-    (when mode
-      (symbol-name (cdr mode)))))
+  (when-let ((mode (assq 'major-mode (buffer-local-variables))))
+    (symbol-name (cdr mode))))
 
 (defun discord-emacs--start-time ()
   "Get the start time of this Emacs instance."
@@ -106,7 +105,7 @@
    :details (format "Editing buffer: %s" (buffer-name))
    :state (discord-emacs--projectile-current-project (format "Buffers open: %d" (discord-emacs--count-buffers)))
    :timestamps `(:start ,(discord-emacs--start-time))
-   :assets `((large_image . ,(discord-emacs--maybe (file-name-extension buffer-file-name) "no-extension"))
+   :assets `((large_image . ,(if buffer-file-name (file-name-extension buffer-file-name) "no-extension"))
              (large_text . ,(discord-emacs--get-current-major-mode))
              (small_image . "emacs")
              (small_text . "emacs"))))
@@ -137,8 +136,14 @@
   (unless discord-emacs--started
     (setq discord-emacs--client-id client-id)
     (add-hook 'post-command-hook #'discord-emacs--ipc-send-update)
+    (add-hook 'kill-emacs #'discord-emacs--stop)
     (ignore-errors ; if we fail here we'll just reconnect later
       (discord-emacs--ipc-connect client-id))))
+
+(defun discord-emacs-stop ()
+  (when-let ((process (get-process "discord-ipc-progress")))
+    (kill-process process)
+    (setq discord-emacs--started nil)))
 
 (provide 'discord-emacs)
 
