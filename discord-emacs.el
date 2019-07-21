@@ -1,6 +1,6 @@
 ;;; discord-emacs.el --- Discord ipc for emacs -*- lexical-binding: t -*-
 ;; Author: Ben Simms <ben@bensimms.moe>
-;; Version: 20190419
+;; Version: 20190721
 ;; URL: https://github.com/nitros12/discord-emacs.el
 
 (require 'json)
@@ -27,10 +27,6 @@
 (defvar discord-emacs--started nil)
 (defvar discord-emacs--blacklisted-buffer-names
   '("^\\s *\\*"))
-
-(defun discord-emacs--maybe (x r)
-  "Shortcut for (if X X R)."
-  (if x x r))
 
 (defun discord-emacs--get-ipc-url ()
   "Get the socket address to make the ipc connection on."
@@ -136,13 +132,13 @@
   (unless discord-emacs--started
     (setq discord-emacs--client-id client-id)
     (add-hook 'post-command-hook #'discord-emacs--ipc-send-update)
-    (add-hook 'kill-emacs #'discord-emacs--stop)
+    (add-hook 'kill-emacs-hook #'discord-emacs-stop)
     (ignore-errors ; if we fail here we'll just reconnect later
       (discord-emacs--ipc-connect client-id))))
 
 (defun discord-emacs-stop ()
   (when-let ((process (get-process "discord-ipc-progress")))
-    (kill-process process)
+    (delete-process process)
     (setq discord-emacs--started nil)))
 
 (provide 'discord-emacs)
