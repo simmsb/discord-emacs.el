@@ -1,6 +1,6 @@
 ;;; discord-emacs.el --- Discord ipc for emacs -*- lexical-binding: t -*-
 ;; Author: Ben Simms <ben@bensimms.moe>
-;; Version: 20190721
+;; Version: 20200323
 ;; URL: https://github.com/nitros12/discord-emacs.el
 
 (require 'json)
