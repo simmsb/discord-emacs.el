@@ -9,6 +9,21 @@
 
 ;;; Code:
 
+(defgroup discord-emacs nil
+  "Discord ipc for emacs"
+  :prefix "discord-emacs-"
+  :group 'external)
+
+(defcustom discord-emacs-ipc-dir (format "/run/user/%i/" (user-uid))
+  "Directory where discord IPC socket lives."
+  :group 'discord-emacs
+  :type 'string)
+
+(defcustom discord-emacs-ipc-name "discord-ipc-0"
+  "Discord IPC socket name."
+  :group 'discord-emacs
+  :type 'string)
+
 (defvar discord-emacs--+handshake+ 0)
 (defvar discord-emacs--+frame+ 1)
 (defvar discord-emacs--+close+ 2)
@@ -30,7 +45,7 @@
 
 (defun discord-emacs--get-ipc-url ()
   "Get the socket address to make the ipc connection on."
-  (format "/run/user/%i/discord-ipc-0" (user-uid)))
+  (concat (file-name-as-directory discord-emacs-ipc-dir) discord-emacs-ipc-name))
 
 (defun discord-emacs--make-ipc-connection ()
   "Make a ipc socket connection."
