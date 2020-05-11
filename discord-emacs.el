@@ -152,7 +152,7 @@
       (discord-emacs--ipc-connect client-id))))
 
 (defun discord-emacs-stop ()
-  (when-let ((process (get-process "discord-ipc-progress")))
+  (when-let ((process (get-process "discord-ipc-process")))
     (delete-process process)
     (setq discord-emacs--started nil)))
 
