@@ -1,7 +1,11 @@
 ;;; discord-emacs.el --- Discord ipc for emacs -*- lexical-binding: t -*-
 ;; Author: Ben Simms <ben@bensimms.moe>
-;; Version: 20200323
+;; Version: 20210522
 ;; URL: https://github.com/nitros12/discord-emacs.el
+;;
+;;; Commentary:
+
+;; Discord rich presence for Emacs.
 
 (require 'json)
 (require 'bindat)
@@ -10,7 +14,7 @@
 ;;; Code:
 
 (defgroup discord-emacs nil
-  "Discord ipc for emacs"
+  "Discord rich presence for Emacs."
   :prefix "discord-emacs-"
   :group 'external)
 
@@ -23,6 +27,16 @@
   "Discord IPC socket name."
   :group 'discord-emacs
   :type 'string)
+
+(defcustom discord-emacs-blacklisted-buffer-names '("^\\s-*\\*")
+  "Buffers matching any of these regexes will not be shown on the rich presence."
+  :group 'discord-emacs
+  :type '(regexp))
+
+(defcustom discord-emacs-blacklisted-major-modes '("circe-channel-mode" "circe-server-mode")
+  "Buffers with major modes matching any of these will be ignored."
+  :group 'discord-emacs
+  :type '(string))
 
 (defvar discord-emacs--+handshake+ 0)
 (defvar discord-emacs--+frame+ 1)
@@ -40,8 +54,6 @@
 (defvar discord-emacs--client-id nil)
 (defvar discord-emacs--current-buffer nil)
 (defvar discord-emacs--started nil)
-(defvar discord-emacs--blacklisted-buffer-names
-  '("^\\s *\\*"))
 
 (defun discord-emacs--get-ipc-url ()
   "Get the socket address to make the ipc connection on."
@@ -90,12 +102,12 @@
   (cl-count-if
    (lambda (b)
      (or (buffer-file-name b)
-         (not (string-match "^ " (buffer-name b)))))
+         (not (discord-emacs--test-buffer b))))
    (buffer-list)))
 
-(defun discord-emacs--get-current-major-mode ()
-  "Get the current major mode of the active buffer."
-  (when-let ((mode (assq 'major-mode (buffer-local-variables))))
+(defun discord-emacs--get-current-major-mode (buffer)
+  "Get the current major mode of BUFFER."
+  (when-let ((mode (assq 'major-mode (buffer-local-variables buffer))))
     (symbol-name (cdr mode))))
 
 (defun discord-emacs--start-time ()
@@ -106,7 +118,7 @@
 
 (defun discord-emacs--projectile-current-project (s)
   "Prepend the current project to S if projectile is installed."
-  (if (featurep 'projectile)
+  (if (fboundp 'projectile-project-name)
       (format "Project: %s, %s" (projectile-project-name) s)
     s))
 
@@ -117,7 +129,7 @@
    :state (discord-emacs--projectile-current-project (format "Buffers open: %d" (discord-emacs--count-buffers)))
    :timestamps `(:start ,(discord-emacs--start-time))
    :assets `((large_image . ,(if buffer-file-name (file-name-extension buffer-file-name) "no-extension"))
-             (large_text . ,(discord-emacs--get-current-major-mode))
+             (large_text . ,(discord-emacs--get-current-major-mode (current-buffer)))
              (small_image . "emacs")
              (small_text . "emacs"))))
 
@@ -126,18 +138,24 @@
   (cl-some (lambda (pred) (funcall pred val))
            predicates))
 
-(defun discord-emacs--test-buffer ()
-  "Test if the current buffer is one that we should build a rich presence for."
-  (discord-emacs--some-pred
-   (cl-mapcar (lambda (regex)
-                (lambda (s) (string-match regex s)))
-              discord-emacs--blacklisted-buffer-names)
-   (buffer-name)))
+(defun discord-emacs--test-buffer (buffer)
+  "Test if the BUFFER is one that we should build a rich presence for."
+  (or
+   (discord-emacs--some-pred
+    (cl-mapcar (lambda (regex)
+                 (lambda (s) (string-match regex s)))
+               discord-emacs-blacklisted-buffer-names)
+    (buffer-name buffer))
+   (discord-emacs--some-pred
+    (cl-mapcar (lambda (blacklisted-mode)
+                 (lambda (s) (string= blacklisted-mode s)))
+               discord-emacs-blacklisted-major-modes)
+    (discord-emacs--get-current-major-mode buffer))))
 
 (defun discord-emacs--ipc-send-update ()
   "Send an ipc update to discord."
   (unless (or (string= discord-emacs--current-buffer (buffer-name))
-              (discord-emacs--test-buffer))
+              (discord-emacs--test-buffer (current-buffer)))
     ;; dont send messages when we are in the same buffer or enter the minibuf
     (setq discord-emacs--current-buffer (buffer-name))
     (discord-emacs--send-json discord-emacs--+frame+ (discord-emacs--gather-data))))
@@ -152,6 +170,7 @@
       (discord-emacs--ipc-connect client-id))))
 
 (defun discord-emacs-stop ()
+  "Stop the Emacs rich presence."
   (when-let ((process (get-process "discord-ipc-process")))
     (delete-process process)
     (setq discord-emacs--started nil)))
