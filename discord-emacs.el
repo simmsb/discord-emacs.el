@@ -61,8 +61,10 @@
 
 (defun discord-emacs--make-ipc-connection ()
   "Make a ipc socket connection."
-  (make-network-process :name "discord-ipc-process"
-                        :remote (discord-emacs--get-ipc-url)))
+  (let ((p (make-network-process :name "discord-ipc-process"
+                                 :remote (discord-emacs--get-ipc-url))))
+    (set-process-query-on-exit-flag p nil)
+    p))
 
 (defun discord-emacs--pack-data (opcode data)
   "Pack OPCODE and DATA."
